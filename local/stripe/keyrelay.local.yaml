@@ -1,0 +1,43 @@
+# KeyRelay running natively on your Mac (no Docker). Paths are relative to the
+# repo root; run-relay.sh starts the relay from there.
+listen: "127.0.0.1:8443"          # localhost only
+
+tls:
+  cert_file: demo/certs/keyrelay.crt
+  key_file: demo/certs/keyrelay.key
+  client_ca_file: demo/certs/ca.crt
+
+vault:
+  address: http://127.0.0.1:8200   # `vault server -dev` from Homebrew
+  timeout: 5s
+  approle:
+    mount: approle
+    role_id_file: local/stripe/.bootstrap/role_id
+    secret_id_file: local/stripe/.bootstrap/secret_id
+
+cache:
+  ttl: 60s
+
+routes:
+  # Stripe: tools the agent calls.
+  - name: stripe
+    upstream: https://api.stripe.com
+    secret: { mount: secret, path: keyrelay/stripe, key: api_key }
+    inject:
+      header: Authorization
+      prefix: "Bearer "
+      strip: [Stripe-Account]       # no acting on connected accounts
+    allow:
+      - spiffe://demo.keyrelay/agent/stripe-agent
+
+  # Anthropic: the model the agent thinks with.
+  - name: anthropic
+    upstream: https://api.anthropic.com
+    secret: { mount: secret, path: keyrelay/anthropic, key: api_key }
+    inject:
+      header: x-api-key
+      prefix: ""
+      strip: [Authorization]
+    allow:
+      - spiffe://demo.keyrelay/agent/stripe-agent
+      - spiffe://demo.keyrelay/agent/rogue   # rogue may think, but not touch Stripe

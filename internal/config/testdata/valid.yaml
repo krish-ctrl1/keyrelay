@@ -1,0 +1,26 @@
+listen: ":8443"
+tls:
+  cert_file: /certs/keyrelay.crt
+  key_file: /certs/keyrelay.key
+  client_ca_file: /certs/ca.crt
+vault:
+  address: http://vault:8200
+  approle:
+    role_id_file: /bootstrap/role_id
+    secret_id_file: /bootstrap/secret_id
+cache:
+  ttl: 30s
+routes:
+  - name: weather
+    upstream: https://api.weather.example/v1
+    secret: {mount: secret, path: keyrelay/weather, key: api_key}
+    allow:
+      - SPIFFE://demo.keyrelay/agent/weather-bot/
+  - name: payments
+    upstream: https://api.payments.example
+    secret: {mount: secret, path: keyrelay/payments, key: api_key}
+    inject:
+      header: X-Api-Key
+      strip: [Authorization]
+    allow:
+      - spiffe://demo.keyrelay/workload/billing

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "keyrelay-langchain"
+version = "0.0.1"
+description = "mTLS-bound HTTP client and LangChain tools for the KeyRelay credential relay"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = [
+  "httpx>=0.27,<1",
+  "langchain-core>=0.3,<2",
+  "pydantic>=2,<3",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "pyyaml>=6"]
+
+[tool.setuptools.packages.find]
+include = ["keyrelay_langchain*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["e2e: builds and runs the real Go relay (requires go and openssl)"]

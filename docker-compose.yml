@@ -1,0 +1,63 @@
+# KeyRelay v0.01 local demo. DEMO ONLY: Vault runs in dev mode and the demo
+# API keys below are fake values shared between Vault (where KeyRelay reads
+# them) and the mock upstream (which plays the third-party API provider).
+# Agents never receive them.
+name: keyrelay-demo
+
+x-demo-keys: &demo-keys
+  WEATHER_API_KEY: wx-live-DEMO-7f3a9c2e1b
+  PAYMENTS_API_KEY: pay-live-DEMO-4d8e6b0a5c
+
+services:
+  vault:
+    image: hashicorp/vault:1.17.6
+    cap_add: [IPC_LOCK]
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: demo-root-token   # used only by vault-init
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_ADDR: http://127.0.0.1:8200
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    networks: [backend]
+
+  vault-init:
+    image: hashicorp/vault:1.17.6
+    user: "0:0"
+    entrypoint: ["/bin/sh", "/deploy/vault-init.sh"]
+    environment:
+      <<: *demo-keys
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: demo-root-token
+    volumes:
+      - ./deploy/vault:/deploy:ro
+      - bootstrap:/bootstrap
+    depends_on:
+      vault: { condition: service_healthy }
+    networks: [backend]
+
+  mock-upstream:
+    build: { context: ., args: { CMD: mock-upstream } }
+    environment: *demo-keys
+    networks: [backend]          # not published: agents cannot bypass KeyRelay
+
+  keyrelay:
+    build: { context: ., args: { CMD: keyrelay-proxy } }
+    command: ["-config", "/etc/keyrelay/config.yaml"]
+    ports: ["127.0.0.1:8443:8443"]
+    volumes:
+      - ./demo/keyrelay.yaml:/etc/keyrelay/config.yaml:ro
+      - ./demo/certs:/certs:ro
+      - bootstrap:/bootstrap:ro
+    depends_on:
+      vault-init: { condition: service_completed_successfully }
+      mock-upstream: { condition: service_started }
+    networks: [backend]
+
+networks:
+  backend: {}
+
+volumes:
+  bootstrap: {}

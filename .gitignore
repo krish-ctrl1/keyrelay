@@ -1,0 +1,9 @@
+/bin/
+/demo/certs/
+*.pyc
+__pycache__/
+.venv/
+*.egg-info/
+.pytest_cache/
+.DS_Store
+/local/stripe/.bootstrap/
